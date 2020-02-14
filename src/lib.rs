@@ -90,6 +90,62 @@ impl DataVector {
             values: new_values,
         }
     }
+
+    /// Resample self onto another vector. That is, interpolate to create a new
+    /// vector with the same x-axis as ['other']. Actually, we need all the
+    /// points of both to preserve accuracy.
+    pub fn resample_max(&self, other: &DataVector, name: String) -> Self {
+        let mut new_values = Vec::new();
+        let value_iter = self.combined_iter(other);
+        for value in value_iter {
+            let point = match value {
+                WhichVector::Both(p1, p2) => Point {
+                    x: p1.x,
+                    y: p1.y + p2.y,
+                },
+                WhichVector::First(p) => {
+                    let y = match other.interpolate(p.x) {
+                        Some(second_y) => max_f64(p.y, second_y),
+                        None => p.y
+                    };
+                    Point { x: p.x, y }
+                }
+                WhichVector::Second(p) => {
+                    let y = match self.interpolate(p.x) {
+                        Some(first_y) => max_f64(p.y, first_y),
+                        None => p.y
+                    };
+                    Point { x: p.x, y }
+                }
+            };
+            new_values.push(point);
+        }
+        Self {
+            name,
+            x_units: self.x_units.clone(),
+            x_name: self.x_name.clone(),
+            y_units: self.y_units.clone(),
+            y_name: self.y_name.clone(),
+            values: new_values,
+        }
+    }
+}
+
+fn cmp_f64(a:f64,b:f64) -> std::cmp::Ordering {
+    if a < b {
+        Ordering::Less
+    } else if a == b {
+        Ordering::Equal
+    } else {
+        Ordering::Greater
+    }
+}
+
+fn max_f64(a:f64,b:f64) -> f64 {
+    match cmp_f64(a, b) {
+        Ordering::Greater => a,
+        _ => b,
+    }
 }
 
 pub struct CombinedDVIter {
@@ -295,4 +351,69 @@ mod tests {
         eprintln!("{:?}", ci);
         assert_eq!(dv3, ci);
     }
+
+
+    #[test]
+    fn max_vectors() {
+        let dv1 = DataVector {
+            name: "Test DV".to_string(),
+            x_units: "s".to_string(),
+            x_name: "Time".to_string(),
+            y_units: "kW".to_string(),
+            y_name: "HRR".to_string(),
+            values: vec![
+                Point { x: 0_f64, y: 0_f64 },
+                Point {
+                    x: 100_f64,
+                    y: 100_f64,
+                },
+            ],
+        };
+        let dv2 = DataVector {
+            name: "Test DV".to_string(),
+            x_units: "s".to_string(),
+            x_name: "Time".to_string(),
+            y_units: "kW".to_string(),
+            y_name: "HRR".to_string(),
+            values: vec![
+                Point {
+                    x: 10_f64,
+                    y: 0_f64,
+                },
+                Point {
+                    x: 70_f64,
+                    y: 100_f64,
+                },
+            ],
+        };
+        let dv3 = DataVector {
+            name: "Test DV".to_string(),
+            x_units: "s".to_string(),
+            x_name: "Time".to_string(),
+            y_units: "kW".to_string(),
+            y_name: "HRR".to_string(),
+            values: vec![
+                Point {
+                    x: 0_f64,
+                    y: 0_f64,
+                },
+                Point {
+                    x: 10_f64,
+                    y: 10_f64,
+                },
+                Point {
+                    x: 70_f64,
+                    y: 100_f64,
+                },
+                Point {
+                    x: 100_f64,
+                    y: 100_f64,
+                },
+            ],
+        };
+        let ci = dv1.resample_max(&dv2, "Test DV".to_string());
+        eprintln!("{:?}", ci);
+        assert_eq!(dv3, ci);
+    }
+
 }
