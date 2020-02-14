@@ -1,0 +1,8 @@
+[package]
+name = "data-vector"
+version = "0.1.0"
+authors = ["Jake O`Shannessy <joshannessy@affinity-eng.com>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
