@@ -49,10 +49,10 @@ impl DataVector {
         None
     }
 
-    pub fn combined_iter(&self, other: &DataVector) -> CombinedDVIter {
+    pub fn combined_iter<'a>(&'a self, other: &'a DataVector) -> CombinedDVIter {
         CombinedDVIter {
-            first_values: self.values.clone(),
-            second_values: other.values.clone(),
+            first_values: &self.values,
+            second_values: &other.values,
             next_first_i: 0,
             next_second_i: 0,
         }
@@ -148,14 +148,14 @@ fn max_f64(a:f64,b:f64) -> f64 {
     }
 }
 
-pub struct CombinedDVIter {
-    first_values: Vec<Point>,
-    second_values: Vec<Point>,
+pub struct CombinedDVIter<'a> {
+    first_values: &'a Vec<Point>,
+    second_values: &'a Vec<Point>,
     next_first_i: usize,
     next_second_i: usize,
 }
 
-impl Iterator for CombinedDVIter {
+impl<'a> Iterator for CombinedDVIter<'a> {
     type Item = WhichVector;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -203,8 +203,8 @@ pub enum WhichVector {
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
 pub struct Point {
-    x: f64,
-    y: f64,
+    pub x: f64,
+    pub y: f64,
 }
 
 use std::cmp::Ordering;
