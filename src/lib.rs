@@ -31,7 +31,7 @@ impl DataVector {
             if x < this_point.x {
                 return None;
             }
-            if let Some(next_point) = self.values.get(i+1) {
+            if let Some(next_point) = self.values.get(i + 1) {
                 if x > next_point.x {
                     continue;
                 } else {
@@ -72,11 +72,11 @@ impl DataVector {
                 },
                 WhichVector::First(p) => {
                     let y = other.interpolate(p.x).unwrap_or(0.0);
-                    Point { x: p.x, y:p.y+y }
+                    Point { x: p.x, y: p.y + y }
                 }
                 WhichVector::Second(p) => {
                     let y = self.interpolate(p.x).unwrap_or(0.0);
-                    Point { x: p.x, y:p.y+y }
+                    Point { x: p.x, y: p.y + y }
                 }
             };
             new_values.push(point);
@@ -106,14 +106,14 @@ impl DataVector {
                 WhichVector::First(p) => {
                     let y = match other.interpolate(p.x) {
                         Some(second_y) => max_f64(p.y, second_y),
-                        None => p.y
+                        None => p.y,
                     };
                     Point { x: p.x, y }
                 }
                 WhichVector::Second(p) => {
                     let y = match self.interpolate(p.x) {
                         Some(first_y) => max_f64(p.y, first_y),
-                        None => p.y
+                        None => p.y,
                     };
                     Point { x: p.x, y }
                 }
@@ -129,7 +129,6 @@ impl DataVector {
             values: new_values,
         }
     }
-
 
     /// Resample as an average of two vectors.
     pub fn resample_avg(&self, other: &DataVector, name: String) -> Self {
@@ -139,15 +138,21 @@ impl DataVector {
             let point = match value {
                 WhichVector::Both(p1, p2) => Point {
                     x: p1.x,
-                    y: (p1.y + p2.y)/2.0,
+                    y: (p1.y + p2.y) / 2.0,
                 },
                 WhichVector::First(p) => {
                     let y = other.interpolate(p.x).unwrap_or(0.0);
-                    Point { x: p.x, y:(p.y+y)/2.0 }
+                    Point {
+                        x: p.x,
+                        y: (p.y + y) / 2.0,
+                    }
                 }
                 WhichVector::Second(p) => {
                     let y = self.interpolate(p.x).unwrap_or(0.0);
-                    Point { x: p.x, y:(p.y+y)/2.0 }
+                    Point {
+                        x: p.x,
+                        y: (p.y + y) / 2.0,
+                    }
                 }
             };
             new_values.push(point);
@@ -163,7 +168,7 @@ impl DataVector {
     }
 }
 
-fn cmp_f64(a:f64,b:f64) -> std::cmp::Ordering {
+fn cmp_f64(a: f64, b: f64) -> std::cmp::Ordering {
     if a < b {
         Ordering::Less
     } else if a == b {
@@ -173,7 +178,7 @@ fn cmp_f64(a:f64,b:f64) -> std::cmp::Ordering {
     }
 }
 
-fn max_f64(a:f64,b:f64) -> f64 {
+fn max_f64(a: f64, b: f64) -> f64 {
     match cmp_f64(a, b) {
         Ordering::Greater => a,
         _ => b,
@@ -361,10 +366,7 @@ mod tests {
             y_units: "kW".to_string(),
             y_name: "HRR".to_string(),
             values: vec![
-                Point {
-                    x: 0_f64,
-                    y: 0_f64,
-                },
+                Point { x: 0_f64, y: 0_f64 },
                 Point {
                     x: 10_f64,
                     y: 10_f64,
@@ -383,7 +385,6 @@ mod tests {
         eprintln!("{:?}", ci);
         assert_eq!(dv3, ci);
     }
-
 
     #[test]
     fn max_vectors() {
@@ -425,10 +426,7 @@ mod tests {
             y_units: "kW".to_string(),
             y_name: "HRR".to_string(),
             values: vec![
-                Point {
-                    x: 0_f64,
-                    y: 0_f64,
-                },
+                Point { x: 0_f64, y: 0_f64 },
                 Point {
                     x: 10_f64,
                     y: 10_f64,
@@ -447,5 +445,4 @@ mod tests {
         eprintln!("{:?}", ci);
         assert_eq!(dv3, ci);
     }
-
 }
