@@ -101,7 +101,7 @@ impl DataVector {
             let point = match value {
                 WhichVector::Both(p1, p2) => Point {
                     x: p1.x,
-                    y: p1.y + p2.y,
+                    y: max_f64(p1.y, p2.y),
                 },
                 WhichVector::First(p) => {
                     let y = match other.interpolate(p.x) {
