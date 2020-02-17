@@ -129,6 +129,38 @@ impl DataVector {
             values: new_values,
         }
     }
+
+
+    /// Resample as an average of two vectors.
+    pub fn resample_avg(&self, other: &DataVector, name: String) -> Self {
+        let mut new_values = Vec::new();
+        let value_iter = self.combined_iter(other);
+        for value in value_iter {
+            let point = match value {
+                WhichVector::Both(p1, p2) => Point {
+                    x: p1.x,
+                    y: (p1.y + p2.y)/2.0,
+                },
+                WhichVector::First(p) => {
+                    let y = other.interpolate(p.x).unwrap_or(0.0);
+                    Point { x: p.x, y:(p.y+y)/2.0 }
+                }
+                WhichVector::Second(p) => {
+                    let y = self.interpolate(p.x).unwrap_or(0.0);
+                    Point { x: p.x, y:(p.y+y)/2.0 }
+                }
+            };
+            new_values.push(point);
+        }
+        Self {
+            name,
+            x_units: self.x_units.clone(),
+            x_name: self.x_name.clone(),
+            y_units: self.y_units.clone(),
+            y_name: self.y_name.clone(),
+            values: new_values,
+        }
+    }
 }
 
 fn cmp_f64(a:f64,b:f64) -> std::cmp::Ordering {
