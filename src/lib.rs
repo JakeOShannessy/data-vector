@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, PartialOrd)]
-pub struct DataVector<T: Clone> {
+pub struct DataVector<T> {
     pub name: String,
     pub x_units: String,
     pub x_name: String,
@@ -13,6 +13,8 @@ pub struct DataVector<T: Clone> {
     /// access.
     pub values: Vec<Point<T>>,
 }
+
+// impl DataVector<T>
 
 // We need an interpolatable trait. This includes this like dates.
 pub trait Interpolate {
