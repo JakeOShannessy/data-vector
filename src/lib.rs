@@ -37,12 +37,16 @@ impl<Tz: TimeZone> Interpolate for chrono::DateTime<Tz> {
 
 // pub
 
-impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
+
+impl<T> DataVector<T> {
     /// A getter method for the values. There is no field access as we don't
     /// want to allow arbitrary changing that might result in unordered data.
     pub fn values(&self) -> &Vec<Point<T>> {
         &self.values
     }
+}
+
+impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
 
     pub fn combined_iter<'a>(&'a self, other: &'a DataVector<T>) -> CombinedDVIter<T> {
         CombinedDVIter {
@@ -89,6 +93,38 @@ impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
             y_units: self.y_units.clone(),
             y_name: self.y_name.clone(),
             values: new_values,
+        }
+    }
+}
+
+
+impl<T: Copy + PartialOrd> DataVector<T> {
+    /// A getter method for the values. There is no field access as we don't
+    /// want to allow arbitrary changing that might result in unordered data.
+    pub fn bounds(&self) -> Option<(Point<T>, Point<T>)> {
+        let mut values = self.values().iter();
+        if let Some(first_value) = values.next() {
+            let mut x_max = first_value.x;
+            let mut x_min = first_value.x;
+            let mut y_max = first_value.y;
+            let mut y_min = first_value.y;
+            for value in values {
+                if value.x > x_max {
+                    x_max = value.x;
+                }
+                if value.y > y_max {
+                    y_max = value.y;
+                }
+                if value.x < x_min {
+                    x_min = value.x;
+                }
+                if value.y < y_min {
+                    y_min = value.y;
+                }
+            }
+            Some((Point::new(x_min,y_min), Point::new(x_max,y_max)))
+        } else {
+            None
         }
     }
 }
@@ -293,6 +329,11 @@ pub struct Point<T> {
     pub x: f64,
     pub y: T,
 }
+
+impl<T> Point<T> {
+    pub fn new(x: f64, y: T) -> Self { Self { x, y } }
+}
+
 
 use std::cmp::Ordering;
 impl<T: PartialOrd> Ord for Point<T> {
