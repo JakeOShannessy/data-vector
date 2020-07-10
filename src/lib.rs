@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, PartialOrd)]
-pub struct DataVector<T> {
+pub struct DataVector<X,Y> {
     pub name: String,
     pub x_units: String,
     pub x_name: String,
@@ -11,25 +11,27 @@ pub struct DataVector<T> {
     pub y_name: String,
     /// The values associated with this vector. TODO: stop allowing public
     /// access.
-    pub values: Vec<Point<T>>,
+    pub values: Vec<Point<X,Y>>,
 }
 
-// impl DataVector<T>
+// impl DataVector<X,Y>
 
 // We need an interpolatable trait. This includes this like dates.
-pub trait Interpolate {
-    fn interpolate(x:f64, x1: f64, x2: f64, y1: Self, y2: Self) -> Self;
+pub trait Interpolate<X: PartialOrd> {
+    fn interpolate(x:X, x1: X, x2: X, y1: Self, y2: Self) -> Self;
 }
 
-impl Interpolate for f64 {
-    fn interpolate(x:f64, x1: f64, x2: f64, y1: Self, y2: Self) -> Self {
+impl<X: Copy + PartialOrd + core::ops::Sub> Interpolate<X> for f64
+where
+    <X as std::ops::Sub>::Output: core::ops::Div<<X as std::ops::Sub>::Output, Output = f64> {
+    fn interpolate(x:X, x1: X, x2: X, y1: Self, y2: Self) -> Self {
         ((x - x1) / (x2 - x1)) * (y2 - y1) + y1
     }
 }
 
-impl<Tz: TimeZone> Interpolate for chrono::DateTime<Tz> {
+impl<Tz: TimeZone> Interpolate<f64> for chrono::DateTime<Tz> {
     fn interpolate(x:f64, x1: f64, x2: f64, y1: Self, y2: Self) -> Self {
-        let basis = 1000 as f64;
+        let basis = 1000_f64;
         let y_diff = y2 - y1.clone();
         y1 + (y_diff*(((x - x1)*basis) as i32) / (((x2 - x1)*basis) as i32))/(basis as i32)
     }
@@ -38,23 +40,25 @@ impl<Tz: TimeZone> Interpolate for chrono::DateTime<Tz> {
 // pub
 
 
-impl<T> DataVector<T> {
+impl<X,Y> DataVector<X,Y> {
     /// A getter method for the values. There is no field access as we don't
     /// want to allow arbitrary changing that might result in unordered data.
-    pub fn values(&self) -> &Vec<Point<T>> {
+    pub fn values(&self) -> &Vec<Point<X,Y>> {
         &self.values
     }
 
 }
-impl<T:Copy> DataVector<T> {
-    pub fn iter(&self) -> impl Iterator<Item=(f64,T)> + '_ {
+
+// TODO: can just be ref
+impl<X:Copy,Y:Copy> DataVector<X,Y> {
+    pub fn iter(&self) -> impl Iterator<Item=(X,Y)> + '_ {
         self.values.iter().map(|p| (p.x,p.y))
     }
 }
 
-impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
+impl<X:Copy + Clone + PartialOrd,Y: Clone + PartialOrd + Interpolate<X>> DataVector<X,Y> {
 
-    pub fn combined_iter<'a>(&'a self, other: &'a DataVector<T>) -> CombinedDVIter<T> {
+    pub fn combined_iter<'a>(&'a self, other: &'a DataVector<X,Y>) -> CombinedDVIter<X,Y> {
         CombinedDVIter {
             first_values: &self.values,
             second_values: &other.values,
@@ -66,7 +70,7 @@ impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
     /// Resample self onto another vector. That is, interpolate to create a new
     /// vector with the same x-axis as ['other']. Actually, we need all the
     /// points of both to preserve accuracy.
-    pub fn resample_max(&self, other: &DataVector<T>, name: String) -> Self {
+    pub fn resample_max(&self, other: &DataVector<X,Y>, name: String) -> Self {
         let mut new_values = Vec::new();
         let value_iter = self.combined_iter(other);
         for value in value_iter {
@@ -101,12 +105,17 @@ impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
             values: new_values,
         }
     }
+
+}
+
+
+impl<X:Copy+PartialOrd+Clone,Y: Clone + PartialOrd + Interpolate<X>> DataVector<X,Y> {
     /// Truncate the vector at the given x-value, but re-interpolate to get the
     /// final value at the truncation point. Return None if no truncation was
     /// necessary. Interpolation is only applied if truncation occurs. TODO:
     /// This assumes that the vector is sorted, which we have not yet
     /// guaranteed.
-    pub fn clip(&mut self, x: f64) -> Option<()> {
+    pub fn clip(&mut self, x: X) -> Option<()> {
         let y = self.interpolate(x).unwrap();
         // The first index above x.
         let x_index_above = self.values.iter().position(|p| p.x > x)?;
@@ -116,17 +125,17 @@ impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
     }
 }
 
-impl <T: PartialOrd> DataVector<T> {
+impl <X:PartialOrd,Y: PartialOrd> DataVector<X,Y> {
     pub fn sort(&mut self) {
         self.values.sort();
     }
 }
 
 
-impl<T: Copy + PartialOrd> DataVector<T> {
+impl<X:PartialOrd+Copy,Y: Copy + PartialOrd> DataVector<X,Y> {
     /// A getter method for the values. There is no field access as we don't
     /// want to allow arbitrary changing that might result in unordered data.
-    pub fn bounds(&self) -> Option<(Point<T>, Point<T>)> {
+    pub fn bounds(&self) -> Option<(Point<X,Y>, Point<X,Y>)> {
         let mut values = self.values().iter();
         if let Some(first_value) = values.next() {
             let mut x_max = first_value.x;
@@ -154,29 +163,29 @@ impl<T: Copy + PartialOrd> DataVector<T> {
     }
 }
 
-impl<T: Interpolate + PartialOrd + Zero + One + Clone + core::ops::Add<T, Output = T> + core::ops::Div<T, Output = T>> DataVector<T> {
+impl<X:Copy+Clone + PartialOrd,Y: Interpolate<X> + PartialOrd + Zero + One + Clone + core::ops::Add<Y, Output = Y> + core::ops::Div<Y, Output = Y>> DataVector<X,Y> {
     /// Resample as an average of two vectors.
-    pub fn resample_avg(&self, other: &DataVector<T>, name: String) -> Self {
+    pub fn resample_avg(&self, other: &DataVector<X,Y>, name: String) -> Self {
         let mut new_values = Vec::new();
         let value_iter = self.combined_iter(other);
         for value in value_iter {
             let point = match value {
                 WhichVector::Both(p1, p2) => Point {
                     x: p1.x,
-                    y: (p1.y + p2.y) / (T::one() + T::one()),
+                    y: (p1.y + p2.y) / (Y::one() + Y::one()),
                 },
                 WhichVector::First(p) => {
-                    let y = other.interpolate(p.x).unwrap_or(T::zero());
+                    let y = other.interpolate(p.x).unwrap_or(Y::zero());
                     Point {
                         x: p.x,
-                        y: (p.y + y) / (T::one() + T::one()),
+                        y: (p.y + y) / (Y::one() + Y::one()),
                     }
                 }
                 WhichVector::Second(p) => {
-                    let y = self.interpolate(p.x).unwrap_or(T::zero());
+                    let y = self.interpolate(p.x).unwrap_or(Y::zero());
                     Point {
                         x: p.x,
-                        y: (p.y + y) / (T::one() + T::one()),
+                        y: (p.y + y) / (Y::one() + Y::one()),
                     }
                 }
             };
@@ -193,9 +202,9 @@ impl<T: Interpolate + PartialOrd + Zero + One + Clone + core::ops::Add<T, Output
     }
 }
 
-impl<T: Clone + Interpolate> DataVector<T> {
+impl<X:Copy+Clone + PartialOrd,Y: Clone + PartialOrd + Interpolate<X>> DataVector<X,Y> {
 
-    pub fn interpolate(&self, x: f64) -> Option<T> {
+    pub fn interpolate(&self, x: X) -> Option<Y> {
         if self.values.len() == 0 {
             return None;
         }
@@ -214,7 +223,7 @@ impl<T: Clone + Interpolate> DataVector<T> {
                     let y1 = this_point.y;
                     let y2 = next_point.y.clone();
                     // Value is between this_point and next_point.
-                    return Some(T::interpolate(x, x1, x2, y1, y2));
+                    return Some(Y::interpolate(x, x1, x2, y1, y2));
                 }
             } else {
                 return None;
@@ -250,28 +259,28 @@ impl One for f64 {
     }
 }
 
-impl<T> DataVector<T>
+impl<X: Copy+PartialOrd+Clone,Y> DataVector<X,Y>
     where
-    T: Clone + Zero + PartialOrd + Interpolate + core::ops::Add<T, Output = T> + core::ops::Sub,
+    Y: Clone + Zero + PartialOrd + Interpolate<X> + core::ops::Add<Y, Output = Y> + core::ops::Sub,
 {
     /// Resample self onto another vector. That is, interpolate to create a new
     /// vector with the same x-axis as ['other']. Actually, we need all the
     /// points of both to preserve accuracy.
-    pub fn resample_add(&self, other: &DataVector<T>, name: String) -> Self {
+    pub fn resample_add(&self, other: &DataVector<X,Y>, name: String) -> Self {
         let mut new_values = Vec::new();
         let value_iter = self.combined_iter(other);
         for value in value_iter {
-            let point: Point<T> = match value {
+            let point: Point<X,Y> = match value {
                 WhichVector::Both(p1, p2) => Point {
                     x: p1.x,
                     y: p1.y + p2.y,
                 },
                 WhichVector::First(p) => {
-                    let y = other.interpolate(p.x).unwrap_or(T::zero());
+                    let y = other.interpolate(p.x).unwrap_or(Y::zero());
                     Point { x: p.x, y: p.y + y }
                 }
                 WhichVector::Second(p) => {
-                    let y = self.interpolate(p.x).unwrap_or(T::zero());
+                    let y = self.interpolate(p.x).unwrap_or(Y::zero());
                     Point { x: p.x, y: p.y + y }
                 }
             };
@@ -289,18 +298,18 @@ impl<T> DataVector<T>
 }
 
 
-impl<T> DataVector<T> {
+impl<X:Copy,Y> DataVector<X,Y> {
     // TODO: switch to AddAssign
-    pub fn x_offset<Y:core::ops::Add<f64, Output = f64> + Copy>(&mut self, offset: Y) {
+    pub fn x_offset<T:core::ops::Add<X, Output = X> + Copy>(&mut self, offset: T) {
         for point in self.values.iter_mut() {
             point.x = offset + point.x;
         }
     }
 }
 
-impl<T: Copy> DataVector<T> {
+impl<X:Copy,Y: Copy> DataVector<X,Y> {
     // TODO: switch to AddAssign
-    pub fn y_offset<Y:core::ops::Add<T, Output = T> + Copy>(&mut self, offset: Y) {
+    pub fn y_offset<T:core::ops::Add<Y, Output = Y> + Copy>(&mut self, offset: T) {
         for point in self.values.iter_mut() {
             point.y = offset + point.y;
         }
@@ -316,15 +325,15 @@ fn max_or_first<T: PartialOrd>(a: T, b: T) -> T {
     }
 }
 
-pub struct CombinedDVIter<'a,T> {
-    first_values: &'a Vec<Point<T>>,
-    second_values: &'a Vec<Point<T>>,
+pub struct CombinedDVIter<'a,X,Y> {
+    first_values: &'a Vec<Point<X,Y>>,
+    second_values: &'a Vec<Point<X,Y>>,
     next_first_i: usize,
     next_second_i: usize,
 }
 
-impl<'a,T: Clone> Iterator for CombinedDVIter<'a,T> {
-    type Item = WhichVector<T>;
+impl<'a,X: Clone+PartialEq+PartialOrd,Y: Clone> Iterator for CombinedDVIter<'a,X,Y> {
+    type Item = WhichVector<X,Y>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // See what points are next.
@@ -360,28 +369,28 @@ impl<'a,T: Clone> Iterator for CombinedDVIter<'a,T> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum WhichVector<T> {
+pub enum WhichVector<X,Y> {
     /// We have a value from the first vector but not the second.
-    First(Point<T>),
+    First(Point<X,Y>),
     /// We have a value from the seconds vector but not the first.
-    Second(Point<T>),
+    Second(Point<X,Y>),
     /// We have values from both vectors.
-    Both(Point<T>, Point<T>),
+    Both(Point<X,Y>, Point<X,Y>),
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
-pub struct Point<T> {
-    pub x: f64,
-    pub y: T,
+pub struct Point<X,Y> {
+    pub x: X,
+    pub y: Y,
 }
 
-impl<T> Point<T> {
-    pub fn new(x: f64, y: T) -> Self { Self { x, y } }
+impl<X,Y> Point<X,Y> {
+    pub fn new(x: X, y: Y) -> Self { Self { x, y } }
 }
 
 
 use std::{ cmp::Ordering};
-impl<T: PartialOrd> Ord for Point<T> {
+impl<X: PartialOrd,Y: PartialOrd> Ord for Point<X,Y> {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.x < other.x {
             Ordering::Less
@@ -399,7 +408,7 @@ impl<T: PartialOrd> Ord for Point<T> {
     }
 }
 
-impl<T: PartialEq> Eq for Point<T> {}
+impl<X: PartialEq, Y: PartialEq> Eq for Point<X,Y> {}
 
 #[cfg(test)]
 mod tests {
@@ -458,7 +467,7 @@ mod tests {
                 },
             ],
         };
-        let ci: Vec<WhichVector<f64>> = dv1.combined_iter(&dv2).collect();
+        let ci: Vec<WhichVector<f64,f64>> = dv1.combined_iter(&dv2).collect();
         eprintln!("{:?}", ci);
     }
 
