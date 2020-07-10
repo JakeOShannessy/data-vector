@@ -44,6 +44,12 @@ impl<T> DataVector<T> {
     pub fn values(&self) -> &Vec<Point<T>> {
         &self.values
     }
+
+}
+impl<T:Copy> DataVector<T> {
+    pub fn iter(&self) -> impl Iterator<Item=(f64,T)> + '_ {
+        self.values.iter().map(|p| (p.x,p.y))
+    }
 }
 
 impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
@@ -94,6 +100,25 @@ impl<T: Clone + PartialOrd + Interpolate> DataVector<T> {
             y_name: self.y_name.clone(),
             values: new_values,
         }
+    }
+    /// Truncate the vector at the given x-value, but re-interpolate to get the
+    /// final value at the truncation point. Return None if no truncation was
+    /// necessary. Interpolation is only applied if truncation occurs. TODO:
+    /// This assumes that the vector is sorted, which we have not yet
+    /// guaranteed.
+    pub fn clip(&mut self, x: f64) -> Option<()> {
+        let y = self.interpolate(x).unwrap();
+        // The first index above x.
+        let x_index_above = self.values.iter().position(|p| p.x > x)?;
+        self.values.truncate(x_index_above);
+        self.values.push(Point::new(x,y));
+        Some(())
+    }
+}
+
+impl <T: PartialOrd> DataVector<T> {
+    pub fn sort(&mut self) {
+        self.values.sort();
     }
 }
 
@@ -170,7 +195,7 @@ impl<T: Interpolate + PartialOrd + Zero + One + Clone + core::ops::Add<T, Output
 
 impl<T: Clone + Interpolate> DataVector<T> {
 
-    fn interpolate(&self, x: f64) -> Option<T> {
+    pub fn interpolate(&self, x: f64) -> Option<T> {
         if self.values.len() == 0 {
             return None;
         }
@@ -263,6 +288,26 @@ impl<T> DataVector<T>
     }
 }
 
+
+impl<T> DataVector<T> {
+    // TODO: switch to AddAssign
+    pub fn x_offset<Y:core::ops::Add<f64, Output = f64> + Copy>(&mut self, offset: Y) {
+        for point in self.values.iter_mut() {
+            point.x = offset + point.x;
+        }
+    }
+}
+
+impl<T: Copy> DataVector<T> {
+    // TODO: switch to AddAssign
+    pub fn y_offset<Y:core::ops::Add<T, Output = T> + Copy>(&mut self, offset: Y) {
+        for point in self.values.iter_mut() {
+            point.y = offset + point.y;
+        }
+    }
+}
+
+
 fn max_or_first<T: PartialOrd>(a: T, b: T) -> T {
     if b < a {
         a
@@ -306,7 +351,7 @@ impl<'a,T: Clone> Iterator for CombinedDVIter<'a,T> {
                     self.next_second_i += 1;
                     Some(WhichVector::Both((*first_point).clone(), (*second_point).clone()))
                 } else {
-                    panic!("invalide equality test");
+                    panic!("invalid equality test");
                 }
             }
             _ => None,
@@ -335,7 +380,7 @@ impl<T> Point<T> {
 }
 
 
-use std::cmp::Ordering;
+use std::{ cmp::Ordering};
 impl<T: PartialOrd> Ord for Point<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.x < other.x {
