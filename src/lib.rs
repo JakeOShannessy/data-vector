@@ -26,9 +26,22 @@ impl<X:PartialOrd,Y:PartialOrd> DataVector<X,Y> {
         }
     }
     pub fn insert(&mut self, value: Point<X,Y>) {
-        if let Some(i) = self.values.iter().position(|p| p.x > value.x) {
-            self.values.insert(i,value);
+        // First check if the values is the highest x, as this is a common
+        // pattern.
+        if let Some(last) = self.values.last() {
+            if value.x >= last.x {
+                self.values.push(value);
+            } else {
+                // Otherwise find the right place using more expensive methods.
+                // TODO: There are more efficient methods than this.
+                if let Some(i) = self.values.iter().position(|p| p.x > value.x) {
+                    self.values.insert(i,value);
+                } else {
+                    self.values.push(value);
+                }
+            }
         } else {
+            // There are no points so we can just push
             self.values.push(value);
         }
     }
