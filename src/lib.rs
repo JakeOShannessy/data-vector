@@ -9,13 +9,30 @@ pub struct DataVector<X, Y> {
     pub x_name: String,
     pub y_units: String,
     pub y_name: String,
-    /// The values associated with this vector. TODO: stop allowing public
-    /// access.
-    pub values: Vec<Point<X, Y>>,
+    /// The values associated with this vector.
+    values: Vec<Point<X, Y>>,
 }
 
-// impl DataVector<X,Y>
-
+impl<X:PartialOrd,Y:PartialOrd> DataVector<X,Y> {
+    pub fn new(name: String, x_units: String, x_name: String, y_units: String, y_name: String, mut values: Vec<Point<X, Y>>) -> Self {
+        values.sort_unstable();
+        Self {
+            name,
+            x_units,
+            x_name,
+            y_units,
+            y_name,
+            values,
+        }
+    }
+    pub fn insert(&mut self, value: Point<X,Y>) {
+        if let Some(i) = self.values.iter().position(|p| p.x > value.x) {
+            self.values.insert(i,value);
+        } else {
+            self.values.push(value);
+        }
+    }
+}
 // We need an interpolatable trait. This includes this like dates.
 pub trait Interpolate<X: PartialOrd> {
     fn interpolate(x: X, x1: X, x2: X, y1: Self, y2: Self) -> Self;
@@ -90,6 +107,44 @@ impl<
         }
     }
 }
+
+
+impl<
+        X: Copy
+            + Clone
+            + PartialOrd
+            + std::ops::Sub<Output = X>
+            + std::ops::AddAssign
+            + std::ops::Add<Output = X>
+            + Zero,
+        Y: Clone + PartialOrd + Interpolate<X>,
+    > DataVector<X, Y>
+{
+    /// Smooth using a Savitzky–Golay filter
+    pub fn smooth(&self, delta: X) -> Self {
+        let mut new_values = Vec::new();
+        let x_start = self.values.first().unwrap().x;
+        let x_end = self.values.last().unwrap().x;
+        let mut x_diff = X::zero();
+        let x_step = delta;
+        while x_diff < (x_end - x_start) {
+            let x = x_start + x_diff;
+            let y = self.interpolate(x).unwrap();
+            new_values.push(Point::new(x, y));
+            x_diff += x_step;
+        }
+        new_values.push(Point::new(x_end, self.interpolate(x_end).unwrap()));
+        Self {
+            name: self.name.clone(),
+            x_units: self.x_units.clone(),
+            x_name: self.x_name.clone(),
+            y_units: self.y_units.clone(),
+            y_name: self.y_name.clone(),
+            values: new_values,
+        }
+    }
+}
+
 
 impl<
         X: Copy
@@ -471,19 +526,14 @@ impl<X, Y> Point<X, Y> {
 
 use std::cmp::Ordering;
 impl<X: PartialOrd, Y: PartialOrd> Ord for Point<X, Y> {
+    // Assumes that NaN is less.
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.x < other.x {
-            Ordering::Less
-        } else if self.x == other.x {
-            if self.y < other.y {
-                Ordering::Less
-            } else if self.y == other.y {
-                Ordering::Equal
-            } else {
-                Ordering::Greater
-            }
-        } else {
+        if self.x > other.x {
             Ordering::Greater
+        } else if self.x == other.x {
+            Ordering::Equal
+        } else {
+            Ordering::Less
         }
     }
 }
