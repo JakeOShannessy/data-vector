@@ -13,6 +13,12 @@ pub struct DataVector<X, Y> {
     values: Vec<Point<X, Y>>,
 }
 
+impl<X,Y> DataVector<X,Y> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<Point<X,Y>> {
+        self.values.iter_mut()
+    }
+}
+
 impl<X:PartialOrd,Y:PartialOrd> DataVector<X,Y> {
     pub fn new(name: String, x_units: String, x_name: String, y_units: String, y_name: String, mut values: Vec<Point<X, Y>>) -> Self {
         values.sort_unstable();
