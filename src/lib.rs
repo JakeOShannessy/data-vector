@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use Debug;
 
+/// A sorted data vector.
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, PartialOrd)]
 pub struct DataVector<X, Y> {
     pub name: String,
@@ -254,12 +255,31 @@ impl<X: Copy + Clone + PartialOrd, Y: Clone + PartialOrd + Interpolate<X>> DataV
 }
 
 impl<X: Copy + PartialOrd + Clone, Y: Clone + PartialOrd + Interpolate<X>> DataVector<X, Y> {
+    // pub fn clip(&mut self, lower: X, upper: X) -> Option<()> {
+    //     let y = self.interpolate(x).unwrap();
+    //     // The first index above x.
+    //     let x_index_above = self.values.iter().position(|p| p.x > x)?;
+    //     self.values.truncate(x_index_above);
+    //     self.values.push(Point::new(x, y));
+    //     Some(())
+    // }
+
     /// Truncate the vector at the given x-value, but re-interpolate to get the
     /// final value at the truncation point. Return None if no truncation was
-    /// necessary. Interpolation is only applied if truncation occurs. TODO:
-    /// This assumes that the vector is sorted, which we have not yet
-    /// guaranteed.
-    pub fn clip(&mut self, x: X) -> Option<()> {
+    /// necessary. Interpolation is only applied if truncation occurs.
+    pub fn clip_upper(&mut self, x: X) -> Option<()> {
+        let y = self.interpolate(x).unwrap();
+        // The first index above x.
+        let x_index_above = self.values.iter().position(|p| p.x > x)?;
+        self.values.truncate(x_index_above);
+        self.values.push(Point::new(x, y));
+        Some(())
+    }
+
+    /// Truncate the vector at the given x-value, but re-interpolate to get the
+    /// final value at the truncation point. Return None if no truncation was
+    /// necessary. Interpolation is only applied if truncation occurs.
+    pub fn clip_lower(&mut self, x: X) -> Option<()> {
         let y = self.interpolate(x).unwrap();
         // The first index above x.
         let x_index_above = self.values.iter().position(|p| p.x > x)?;

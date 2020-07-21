@@ -1,6 +1,6 @@
 [package]
 name = "data-vector"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Jake O`Shannessy <joshannessy@affinity-eng.com>"]
 edition = "2018"
 
