@@ -14,14 +14,21 @@ pub struct DataVector<X, Y> {
     values: Vec<Point<X, Y>>,
 }
 
-impl<X,Y> DataVector<X,Y> {
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<Point<X,Y>> {
+impl<X, Y> DataVector<X, Y> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<Point<X, Y>> {
         self.values.iter_mut()
     }
 }
 
-impl<X:PartialOrd,Y:PartialOrd> DataVector<X,Y> {
-    pub fn new(name: String, x_units: String, x_name: String, y_units: String, y_name: String, mut values: Vec<Point<X, Y>>) -> Self {
+impl<X: PartialOrd, Y: PartialOrd> DataVector<X, Y> {
+    pub fn new(
+        name: String,
+        x_units: String,
+        x_name: String,
+        y_units: String,
+        y_name: String,
+        mut values: Vec<Point<X, Y>>,
+    ) -> Self {
         values.sort_unstable();
         Self {
             name,
@@ -32,7 +39,7 @@ impl<X:PartialOrd,Y:PartialOrd> DataVector<X,Y> {
             values,
         }
     }
-    pub fn insert(&mut self, value: Point<X,Y>) {
+    pub fn insert(&mut self, value: Point<X, Y>) {
         // First check if the values is the highest x, as this is a common
         // pattern.
         if let Some(last) = self.values.last() {
@@ -42,7 +49,7 @@ impl<X:PartialOrd,Y:PartialOrd> DataVector<X,Y> {
                 // Otherwise find the right place using more expensive methods.
                 // TODO: There are more efficient methods than this.
                 if let Some(i) = self.values.iter().position(|p| p.x > value.x) {
-                    self.values.insert(i,value);
+                    self.values.insert(i, value);
                 } else {
                     self.values.push(value);
                 }
@@ -128,7 +135,6 @@ impl<
     }
 }
 
-
 impl<
         X: Copy
             + Clone
@@ -164,7 +170,6 @@ impl<
         }
     }
 }
-
 
 impl<
         X: Copy
@@ -557,6 +562,16 @@ pub struct SingleVector<T> {
     pub name: String,
     pub units: String,
     values: Vec<T>,
+}
+
+impl<T> SingleVector<T> {
+    pub fn new(name: String, units: String, values: Vec<T>) -> Self {
+        Self {
+            name,
+            units,
+            values,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
