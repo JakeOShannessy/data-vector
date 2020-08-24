@@ -572,6 +572,18 @@ impl<T> SingleVector<T> {
             values,
         }
     }
+
+    pub fn iter(&self) -> std::slice::Iter<T> {
+        self.values.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+        self.values.iter_mut()
+    }
+
+    pub fn values(&self) -> &Vec<T> {
+        &self.values
+    }
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
