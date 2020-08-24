@@ -551,6 +551,14 @@ pub enum WhichVector<X, Y> {
     Both(Point<X, Y>, Point<X, Y>),
 }
 
+/// Indexed data.
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, PartialOrd)]
+pub struct SingleVector<T> {
+    pub name: String,
+    pub units: String,
+    values: Vec<T>,
+}
+
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
 pub struct Point<X, Y> {
     pub x: X,
