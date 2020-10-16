@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use Debug;
+use std::fmt::Debug;
 
 /// A raw sorted data vector.
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, PartialOrd)]
@@ -13,7 +13,6 @@ pub struct RawDataVector<X, Y> {
     /// The values associated with this vector.
     values: Vec<Point<X, Y>>,
 }
-
 
 /// A sorted data vector.
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, PartialOrd)]
@@ -495,7 +494,6 @@ where
     /// vector with the same x-axis as ['other']. Actually, we need all the
     /// points of both to preserve accuracy.
     pub fn multiply(&mut self, operand: Y) {
-
         let value_iter = self.iter_mut();
         for value in value_iter {
             value.y = value.y * operand;
