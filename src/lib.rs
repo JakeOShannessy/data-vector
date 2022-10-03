@@ -365,14 +365,14 @@ impl<
                     y: (p1.y + p2.y) / (Y::one() + Y::one()),
                 },
                 WhichVector::First(p) => {
-                    let y = other.interpolate(p.x).unwrap_or_else(||Y::zero());
+                    let y = other.interpolate(p.x).unwrap_or_else(Y::zero);
                     Point {
                         x: p.x,
                         y: (p.y + y) / (Y::one() + Y::one()),
                     }
                 }
                 WhichVector::Second(p) => {
-                    let y = self.interpolate(p.x).unwrap_or_else(||Y::zero());
+                    let y = self.interpolate(p.x).unwrap_or_else(Y::zero);
                     Point {
                         x: p.x,
                         y: (p.y + y) / (Y::one() + Y::one()),
@@ -613,7 +613,7 @@ impl<T> SingleVector<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Point<X, Y> {
     pub x: X,
     pub y: Y,
@@ -626,16 +626,19 @@ impl<X, Y> Point<X, Y> {
 }
 
 use std::cmp::Ordering;
+
+impl<X: PartialOrd, Y: PartialOrd> PartialOrd for Point<X, Y> {
+    // Assumes that NaN is less.
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+       self.x.partial_cmp(&other.x)
+    }
+}
+
+
 impl<X: PartialOrd, Y: PartialOrd> Ord for Point<X, Y> {
     // Assumes that NaN is less.
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.x > other.x {
-            Ordering::Greater
-        } else if self.x == other.x {
-            Ordering::Equal
-        } else {
-            Ordering::Less
-        }
+        self.partial_cmp(other).unwrap_or(Ordering::Less)
     }
 }
 
