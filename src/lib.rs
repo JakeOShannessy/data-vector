@@ -365,14 +365,14 @@ impl<
                     y: (p1.y + p2.y) / (Y::one() + Y::one()),
                 },
                 WhichVector::First(p) => {
-                    let y = other.interpolate(p.x).unwrap_or(Y::zero());
+                    let y = other.interpolate(p.x).unwrap_or_else(||Y::zero());
                     Point {
                         x: p.x,
                         y: (p.y + y) / (Y::one() + Y::one()),
                     }
                 }
                 WhichVector::Second(p) => {
-                    let y = self.interpolate(p.x).unwrap_or(Y::zero());
+                    let y = self.interpolate(p.x).unwrap_or_else(||Y::zero());
                     Point {
                         x: p.x,
                         y: (p.y + y) / (Y::one() + Y::one()),
@@ -394,7 +394,7 @@ impl<
 
 impl<X: Copy + Clone + PartialOrd, Y: Clone + PartialOrd + Interpolate<X>> DataVector<X, Y> {
     pub fn interpolate(&self, x: X) -> Option<Y> {
-        if self.values.len() == 0 {
+        if self.values.is_empty() {
             return None;
         }
         // We assume that the values are properly sorted on the x-axis.
@@ -465,11 +465,11 @@ where
                     y: p1.y + p2.y,
                 },
                 WhichVector::First(p) => {
-                    let y = other.interpolate(p.x).unwrap_or(Y::zero());
+                    let y = other.interpolate(p.x).unwrap_or_else(Y::zero);
                     Point { x: p.x, y: p.y + y }
                 }
                 WhichVector::Second(p) => {
-                    let y = self.interpolate(p.x).unwrap_or(Y::zero());
+                    let y = self.interpolate(p.x).unwrap_or_else(Y::zero);
                     Point { x: p.x, y: p.y + y }
                 }
             };

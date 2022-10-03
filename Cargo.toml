@@ -1,9 +1,9 @@
 [package]
+authors = ["Jake O`Shannessy <joshannessy@affinity-fire.com>"]
+edition = "2018"
 name = "data-vector"
 version = "0.1.4"
-authors = ["Jake O`Shannessy <joshannessy@affinity-eng.com>"]
-edition = "2018"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-chrono = "0.4"
+chrono = {version = "0.4", default-features = false}
+serde = {version = "1", features = ["derive"]}
